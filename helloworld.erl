@@ -1,6 +1,7 @@
 % hello world program
 -module(helloworld).
--export([start/0])
+-export([start/0]).
 
 start() ->
-io:fwrite("Hello, World!"\n)
+    io:fwrite("Hello, world!\n").
+	
