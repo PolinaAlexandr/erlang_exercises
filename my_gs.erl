@@ -14,50 +14,42 @@ start() ->
     stop(LoopPid).
 
 add(Pid, Item) ->
-    Pid ! {self(), {add, Item}},
-    receive
-        {reply, Reply} -> Reply
-    after 5000 -> noreply
-    end.
+  call(Pid, {add, Item}).
 
 remove(Pid, Item) ->
-    Pid ! {self(), {remove, Item}},
-    receive
-        {reply, Reply} -> Reply
-    after 5000 -> noreply
-    end.
+    call(Pid, {remove, Item}).
 
 check(Pid, Item) ->
-    Pid ! {self(), {check, Item}},
-    receive
-        {reply, Reply} -> Reply
-    after 5000 -> noreply
-    end.
+    call(Pid, {check, Item}).
 
 show(Pid) ->
-    Pid ! {self(), show},
-    receive
-        {reply, Reply} -> Reply
-    after 5000 -> noreply
-    end.
+    call(Pid, show).
 
     
 stop(Pid) ->
     Pid ! stop.
 
+call(Pid, Msg) ->
+    Pid ! {self(), Msg},
+    receive 
+        {reply, Reply} -> Reply
+    after 5000 -> noreply
+    end.
 
 loop(State) ->
     io:fwrite("process ~p entered the loop, brother ~n", [self()]),
     receive
-        {add, Item} -> NewState = [Item | State],
-                       ?MODULE:loop(NewState);
-        {remove, Item} -> NewState = lists:delete(Item, State),
-                          ?MODULE:loop(NewState);
-        {check, Item} -> Res = lists:member(Item, State),
-                         io:fwrite("~p~n", [Res]),
-                         ?MODULE:loop(State);
-        show -> io:fwrite("~p~n", [State]),
-                ?MODULE:loop(State);
+        {From, {add, Item}} -> NewState = [Item | State],
+                               From ! {reply, ok}, 
+                               ?MODULE:loop(NewState);
+        {From,{remove, Item}} -> NewState = lists:delete(Item, State),
+                                 From ! {reply, ok},  
+                                 ?MODULE:loop(NewState);
+        {From, {check, Item}} -> Res = lists:member(Item, State),
+                                 From ! {reply, Res},
+                                 ?MODULE:loop(State);
+        {From, show} -> From ! {reply, State},
+                        ?MODULE:loop(State);
         stop -> io:format("~p stops now ~n", [self()]);
         Msg -> io:fwrite("ERROR: ~p receive unknown msg ~p~n", [self(), Msg]),
                ?MODULE:loop(State)
