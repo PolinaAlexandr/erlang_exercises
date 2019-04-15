@@ -2,19 +2,13 @@
 -export([start/0, add/2, remove/2, check/2, show/1, stop/1]).
 -export([loop/1]).
 
-
 start() ->
-    io:fwrite("starting custom gen_server at Pid ~p~n", [self()]),
+    io:format("start ~p~n", [self()]),
     InitialState = [],
-    LoopPid = spawn(?MODULE, loop, [InitialState]),
-    show(LoopPid),
-    add(LoopPid, 3),
-    check(LoopPid, 3),
-    show(LoopPid),
-    stop(LoopPid).
+    spawn(?MODULE, loop, [InitialState]).
 
 add(Pid, Item) ->
-  call(Pid, {add, Item}).
+    call(Pid, {add, Item}).
 
 remove(Pid, Item) ->
     call(Pid, {remove, Item}).
@@ -25,32 +19,39 @@ check(Pid, Item) ->
 show(Pid) ->
     call(Pid, show).
 
-    
 stop(Pid) ->
     Pid ! stop.
 
 call(Pid, Msg) ->
-    Pid ! {self(), Msg},
-    receive 
-        {reply, Reply} -> Reply
+    Ref = make_ref(),
+    Pid ! {call, Ref, self(), Msg},
+    receive
+        {reply, Ref, Reply} -> Reply
     after 5000 -> noreply
     end.
 
 loop(State) ->
-    io:fwrite("process ~p entered the loop, brother ~n", [self()]),
+    io:format("~p enters loop ~n", [self()]),
     receive
-        {From, {add, Item}} -> NewState = [Item | State],
-                               From ! {reply, ok}, 
-                               ?MODULE:loop(NewState);
-        {From,{remove, Item}} -> NewState = lists:delete(Item, State),
-                                 From ! {reply, ok},  
-                                 ?MODULE:loop(NewState);
-        {From, {check, Item}} -> Res = lists:member(Item, State),
-                                 From ! {reply, Res},
-                                 ?MODULE:loop(State);
-        {From, show} -> From ! {reply, State},
-                        ?MODULE:loop(State);
+        {call, Ref, From, Msg} -> {Reply, NewState} = handle_call(Msg, State),
+                             From ! {reply, Ref, Reply},
+                             ?MODULE:loop(NewState);
         stop -> io:format("~p stops now ~n", [self()]);
-        Msg -> io:fwrite("ERROR: ~p receive unknown msg ~p~n", [self(), Msg]),
+        Msg -> io:format("ERROR: ~p receive unknown msg ~p~n", [self(), Msg]),
                ?MODULE:loop(State)
     end.
+
+handle_call({add, Item}, State) ->
+    NewState = [Item | State],
+    {ok, NewState};
+
+handle_call({remove, Item}, State) ->
+    NewState = lists:delete(Item, State),
+    {ok, NewState};
+
+handle_call({check, Item}, State) ->
+    Res = lists:member(Item, State),
+    {Res, State};
+
+handle_call(show, State) ->
+    {State, State}.
