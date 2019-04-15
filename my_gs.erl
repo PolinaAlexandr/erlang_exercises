@@ -14,19 +14,37 @@ start() ->
     stop(LoopPid).
 
 add(Pid, Item) ->
-    Pid ! {add, Item}.
-    
+    Pid ! {self(), {add, Item}},
+    receive
+        {reply, Reply} -> Reply
+    after 5000 -> noreply
+    end.
+
 remove(Pid, Item) ->
-    Pid ! {remove, Item}.
-    
+    Pid ! {self(), {remove, Item}},
+    receive
+        {reply, Reply} -> Reply
+    after 5000 -> noreply
+    end.
+
 check(Pid, Item) ->
-    Pid ! {check, Item}.
-    
+    Pid ! {self(), {check, Item}},
+    receive
+        {reply, Reply} -> Reply
+    after 5000 -> noreply
+    end.
+
 show(Pid) ->
-    Pid ! show.
+    Pid ! {self(), show},
+    receive
+        {reply, Reply} -> Reply
+    after 5000 -> noreply
+    end.
+
     
 stop(Pid) ->
     Pid ! stop.
+
 
 loop(State) ->
     io:fwrite("process ~p entered the loop, brother ~n", [self()]),
